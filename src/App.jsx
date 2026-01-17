@@ -550,7 +550,7 @@ const App = () => {
               </motion.a>
 
               {/* Secondary CTA */}
-              <motion.a href="https://linkedin.com" target="_blank" whileHover={{ x: 8 }} className="flex items-center gap-2 text-sm font-bold transition-all text-slate-500 hover:text-blue-600">
+              <motion.a href="https://www.linkedin.com/in/raihan-azka-hidayat-355772341" target="_blank" whileHover={{ x: 8 }} className="flex items-center gap-2 text-sm font-bold transition-all text-slate-500 hover:text-blue-600">
                 Let’s Connect on LinkedIn
                 <span className="opacity-60">↗</span>
               </motion.a>
