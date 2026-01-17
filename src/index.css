@@ -1,0 +1,18 @@
+@import 'tailwindcss';
+
+@variant dark (&:where(.dark, .dark *));
+
+html {
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+}
+
+section {
+  /* Memberikan jarak atas saat scroll agar judul tidak tertutup navbar fixed */
+  scroll-margin-top: 7rem;
+}
+
+body {
+  overflow-x: hidden;
+}
+
