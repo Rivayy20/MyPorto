@@ -148,16 +148,22 @@ const App = () => {
     // 1. Tutup menu mobile terlebih dahulu
     setIsMenuOpen(false);
 
-    // 2. Jeda sedikit agar animasi menu selesai, lalu scroll
+    // 2. Bersihkan URL agar tidak ada #section-name yang tertinggal
+    // Ini akan mengubah url dari 'domain.com/#contact' menjadi 'domain.com/'
+    // secara halus tanpa reload halaman.
+    window.history.pushState('', document.title, window.location.pathname + window.location.search);
+
+    // 3. Jeda sedikit agar animasi menu selesai, lalu scroll
     setTimeout(() => {
-      const target = document.querySelector(href);
+      const targetId = href.replace('#', '');
+      const target = document.getElementById(targetId);
       if (target) {
         target.scrollIntoView({
           behavior: 'smooth',
           block: 'start',
         });
       }
-    }, 300); // Durasi disesuaikan dengan transisi AnimatePresence
+    }, 300);
   };
 
   return (
@@ -167,7 +173,7 @@ const App = () => {
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }} className="flex items-center cursor-pointer group">
             {/* Logo Image Only - No Background/Outline */}
-            <img src="/src/assets/img/logo.png" alt="Logo" className="w-10 h-10 md:w-14 md:h-14 object-contain transition-transform group-hover:scale-110 active:scale-95" />
+            <img src="/img/logo.png" alt="Logo" className="w-10 h-10 md:w-14 md:h-14 object-contain transition-transform group-hover:scale-110 active:scale-95" />
           </motion.div>
 
           {/* Desktop Navigation */}
@@ -309,7 +315,7 @@ const App = () => {
                   </motion.span>
                 </motion.a>
 
-                <motion.a href="/src/assets/cv.pdf" target="_blank" whileHover={{ x: 6 }} transition={{ duration: 0.3 }} className="group flex items-center gap-2 text-sm font-bold text-slate-500 transition-all hover:text-blue-600">
+                <motion.a href="/cv.pdf" target="_blank" whileHover={{ x: 6 }} transition={{ duration: 0.3 }} className="group flex items-center gap-2 text-sm font-bold text-slate-500 transition-all hover:text-blue-600">
                   <Download size={18} className="transition opacity-70 group-hover:opacity-100" />
                   <span>Download CV</span>
                 </motion.a>
@@ -329,7 +335,7 @@ const App = () => {
                 className="relative w-72 h-72 md:w-80 md:h-80 rounded-full bg-linear-to-tr from-blue-600 to-cyan-400 p-1"
               >
                 <img
-                  src="/src/assets/img/profil2.png"
+                  src="/img/profil2.png"
                   alt="Profile"
                   className="
                     w-full h-full
@@ -357,7 +363,7 @@ const App = () => {
               {/* Card */}
               <div className="relative aspect-square bg-slate-200 dark:bg-slate-800 rounded-3xl shadow-2xl overflow-hidden">
                 {/* Foto */}
-                <img src="/src/assets/img/telkom.jpg" alt="Profile" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 group-hover:rotate-1" />
+                <img src="/img/telkom.jpg" alt="Profile" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 group-hover:rotate-1" />
 
                 {/* Overlay Gradient */}
                 <div className="absolute inset-0 bg-linear-to-t from-black/40 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition duration-500"></div>
