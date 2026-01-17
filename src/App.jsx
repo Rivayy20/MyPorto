@@ -309,7 +309,7 @@ const App = () => {
                   </motion.span>
                 </motion.a>
 
-                <motion.a href="/cv.pdf" target="_blank" whileHover={{ x: 6 }} transition={{ duration: 0.3 }} className="group flex items-center gap-2 text-sm font-bold text-slate-500 transition-all hover:text-blue-600">
+                <motion.a href="/src/assets/cv.pdf" target="_blank" whileHover={{ x: 6 }} transition={{ duration: 0.3 }} className="group flex items-center gap-2 text-sm font-bold text-slate-500 transition-all hover:text-blue-600">
                   <Download size={18} className="transition opacity-70 group-hover:opacity-100" />
                   <span>Download CV</span>
                 </motion.a>
