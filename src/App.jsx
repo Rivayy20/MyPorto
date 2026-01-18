@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Sun, Moon, Linkedin, Instagram, Mail, MessageCircle, Menu, X, Code2, Terminal, Database, Cpu, Rocket, Github } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useScroll } from 'framer-motion';
 import { TypeAnimation } from 'react-type-animation';
 import { ArrowRight, Download } from 'lucide-react';
+import Lenis from '@studio-freight/lenis';
 
 const fadeLeft = {
   hidden: { opacity: 0, x: -80 },
@@ -48,13 +49,44 @@ const contactItem = {
   }),
 };
 
+const sidebarVariants = {
+  closed: { x: '100%', transition: { type: 'spring', damping: 25, stiffness: 200 } },
+  opened: {
+    x: 0,
+    transition: {
+      type: 'spring',
+      damping: 25,
+      stiffness: 200,
+      staggerChildren: 0.1,
+      delayChildren: 0.2,
+    },
+  },
+};
+
+const linkVariants = {
+  closed: { opacity: 0, x: 20 },
+  opened: { opacity: 1, x: 0 },
+};
+
 const App = () => {
+  const { scrollYProgress } = useScroll();
   const [darkMode, setDarkMode] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
+  const [isLaunching, setIsLaunching] = useState(false);
 
-  // Toggle Dark Mode Class
+  useEffect(() => {
+    const lenis = new Lenis();
+
+    function raf(time) {
+      lenis.raf(time);
+      requestAnimationFrame(raf);
+    }
+
+    requestAnimationFrame(raf);
+  }, []);
+
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add('dark');
@@ -63,8 +95,6 @@ const App = () => {
     }
   }, [darkMode]);
 
-  // Lock body scroll when sidebar is open
-  // Lock body scroll when sidebar is open
   useEffect(() => {
     if (isMenuOpen) {
       document.body.style.overflow = 'hidden';
@@ -72,7 +102,6 @@ const App = () => {
       document.body.style.overflow = 'unset';
     }
 
-    // Cleanup function: Mengembalikan scroll jika komponen di-unmount
     return () => {
       document.body.style.overflow = 'unset';
     };
@@ -81,20 +110,22 @@ const App = () => {
   useEffect(() => {
     const sections = ['home', 'about', 'skills', 'project', 'contact'];
 
-    // Ubah threshold menjadi lebih kecil dan tambahkan rootMargin
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setActiveSection(entry.target.id);
-          }
-        });
-      },
-      {
-        threshold: 0.2, // Section dianggap aktif saat 20% terlihat
-        rootMargin: '-10% 0px -70% 0px', // Memfokuskan deteksi pada bagian atas layar
-      },
-    );
+    const observerOptions = {
+      // Memberikan batas deteksi:
+      // -20% dari atas (mengabaikan navbar)
+      // -40% dari bawah (agar tidak mendeteksi section yang baru muncul sedikit di bawah)
+      rootMargin: '-20% 0px -40% 0px',
+      threshold: [0, 0.1, 0.2, 0.3], // Deteksi bertahap untuk akurasi lebih baik
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        // Hanya update jika section tersebut benar-benar masuk ke area fokus
+        if (entry.isIntersecting && entry.intersectionRatio > 0.1) {
+          setActiveSection(entry.target.id);
+        }
+      });
+    }, observerOptions);
 
     sections.forEach((id) => {
       const el = document.getElementById(id);
@@ -106,17 +137,16 @@ const App = () => {
 
   useEffect(() => {
     const handleScrollWindow = () => {
-      const homeSection = document.getElementById('home');
-      if (!homeSection) return;
-      const homeBottom = homeSection.offsetTop + homeSection.offsetHeight;
-      if (window.scrollY > homeBottom - 100) {
-        setShowBackToTop(true);
-      } else {
-        setShowBackToTop(false);
-      }
+      window.requestAnimationFrame(() => {
+        const homeSection = document.getElementById('home');
+        if (!homeSection) return;
+
+        const homeBottom = homeSection.offsetTop + homeSection.offsetHeight;
+        setShowBackToTop(window.scrollY > homeBottom - 100);
+      });
     };
 
-    window.addEventListener('scroll', handleScrollWindow);
+    window.addEventListener('scroll', handleScrollWindow, { passive: true });
     return () => window.removeEventListener('scroll', handleScrollWindow);
   }, []);
 
@@ -148,24 +178,44 @@ const App = () => {
     e.preventDefault();
     setIsMenuOpen(false);
 
-    // Ambil ID target dari href
     const targetId = href.replace('#', '');
+    const target = document.getElementById(targetId);
 
-    // PAKSA update state agar indikator langsung berpindah
-    setActiveSection(targetId);
+    if (target) {
+      // Set aktif segera agar animasi layoutId langsung berpindah ke target
+      setActiveSection(targetId);
 
-    window.history.pushState('', document.title, window.location.pathname + window.location.search);
+      const navHeight = 80;
+      const targetPosition = target.offsetTop - navHeight;
 
+      window.scrollTo({
+        top: targetPosition,
+        behavior: 'smooth',
+      });
+    }
+  };
+
+  const handleLaunch = () => {
+    setIsLaunching(true);
+
+    // PAKSA aktifkan section home agar highlight di sidebar/navbar langsung berpindah
+    setActiveSection('home');
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    });
+
+    // Reset status roket setelah animasi selesai
     setTimeout(() => {
-      const target = document.getElementById(targetId);
-      if (target) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, 300);
+      setIsLaunching(false);
+    }, 1000);
   };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-500 font-sans overflow-x-hidden">
+      {/* PROGRESS BAR - PASTI MUNCUL */}
+      <motion.div className="fixed top-0 left-0 right-0 h-[4px] bg-linear-to-r from-blue-600 via-cyan-400 to-blue-600 z-[100] origin-left shadow-[0_1px_10px_rgba(37,99,235,0.8)]" style={{ scaleX: scrollYProgress }} />
       {/* NAVBAR */}
       <nav className="fixed w-full z-50 bg-white/70 dark:bg-slate-950/70 backdrop-blur-lg border-b border-slate-200 dark:border-slate-800">
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
@@ -186,7 +236,19 @@ const App = () => {
                     className={`relative text-sm font-medium transition-colors ${isActive ? 'text-blue-600' : 'text-slate-600 dark:text-slate-400 hover:text-blue-500'}`}
                   >
                     {link.name}
-                    <span className={`absolute -bottom-1 left-0 h-0.5 bg-blue-600 transition-all duration-300 ${isActive ? 'w-full' : 'w-0'}`} />
+                    {/* ANIMASI HIGHLIGHT HALUS */}
+                    {isActive && (
+                      <motion.div
+                        layoutId="nav-highlight"
+                        className="absolute -bottom-1 left-0 right-0 h-0.5 bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.5)]"
+                        initial={false}
+                        transition={{
+                          type: 'spring',
+                          stiffness: 380,
+                          damping: 30,
+                        }}
+                      />
+                    )}
                   </a>
                 );
               })}
@@ -228,51 +290,68 @@ const App = () => {
 
             {/* Sidebar Content */}
             <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed top-0 right-0 z-70 h-full w-70 bg-white dark:bg-slate-900 shadow-2xl md:hidden"
+              variants={sidebarVariants}
+              initial="closed"
+              animate="opened"
+              exit="closed"
+              className="fixed top-0 right-0 z-70 h-full w-72 bg-white/60 dark:bg-slate-950/60 backdrop-blur-2xl border-l border-white/20 dark:border-slate-800/50 shadow-2xl md:hidden"
             >
-              <div className="flex flex-col h-full p-8">
+              <div className="flex flex-col h-full p-8 relative overflow-hidden">
+                {/* Dekorasi Cahaya Halus di dalam Sidebar agar efek kaca lebih hidup */}
+                <div className="absolute top-[-10%] right-[-10%] w-40 h-40 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+
                 {/* Close Button */}
-                <div className="flex justify-end mb-8">
-                  <button onClick={() => setIsMenuOpen(false)} className="p-2 rounded-full bg-slate-100 dark:bg-slate-800">
+                <div className="flex justify-end mb-12 relative z-10">
+                  <button onClick={() => setIsMenuOpen(false)} className="p-3 rounded-full bg-slate-100/50 dark:bg-slate-800/50 text-slate-800 dark:text-white backdrop-blur-md transition-transform active:scale-90">
                     <X size={24} />
                   </button>
                 </div>
 
-                {/* Nav Links */}
-                <div className="flex flex-col gap-8">
-                  {navLinks.map((link) => {
-                    const isActive = activeSection === link.href.replace('#', '');
-                    return (
-                      <a
-                        key={link.name}
-                        href={link.href}
-                        onClick={(e) => handleScroll(e, link.href)}
-                        className={`text-3xl font-black italic uppercase transition-colors ${isActive ? 'text-blue-600' : 'text-slate-400 dark:text-slate-500 hover:text-blue-600'}`}
-                      >
-                        {link.name}
-                      </a>
-                    );
-                  })}
-                </div>
-
-                {/* Bottom Socials */}
-                <div className="mt-auto pt-8 border-t border-slate-200 dark:border-slate-800">
-                  <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-6">Let's Connect</p>
-                  <div className="flex gap-6">
-                    <a href="https://www.linkedin.com/in/raihan-azka-hidayat-355772341" target="_blank" rel="noreferrer" className="text-slate-600 dark:text-slate-400 hover:text-blue-600">
-                      <Linkedin size={24} />
-                    </a>
-                    <a href="https://www.instagram.com/azk.hy_?igsh=NTE0NHprOXNtb3Z1" target="_blank" rel="noreferrer" className="text-slate-600 dark:text-slate-400 hover:text-pink-500">
-                      <Instagram size={24} />
-                    </a>
-                    <a href="https://wa.me/+6289652249372" target="_blank" rel="noreferrer" className="text-green-500">
-                      <MessageCircle size={24} />
-                    </a>
+                {/* Nav Links & Socials Wrapper */}
+                <div className="flex flex-col gap-12 relative z-10">
+                  {/* Nav Links */}
+                  <div className="flex flex-col gap-6">
+                    {navLinks.map((link) => {
+                      const isActive = activeSection === link.href.replace('#', '');
+                      return (
+                        <motion.a
+                          key={link.name}
+                          href={link.href}
+                          variants={linkVariants}
+                          onClick={(e) => handleScroll(e, link.href)}
+                          className={`text-4xl font-black italic uppercase transition-all ${isActive ? 'text-blue-600 translate-x-2' : 'text-slate-500/80 dark:text-slate-400/80 hover:text-blue-500'}`}
+                        >
+                          {link.name}
+                        </motion.a>
+                      );
+                    })}
                   </div>
+
+                  {/* Bottom Socials */}
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="pt-8 border-t border-slate-200/50 dark:border-slate-800/50">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-6">Let's Connect</p>
+                    <div className="flex gap-6">
+                      <a
+                        href="https://www.linkedin.com/in/raihan-azka-hidayat-355772341"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="p-3 rounded-2xl bg-slate-100/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-all active:scale-90"
+                      >
+                        <Linkedin size={22} />
+                      </a>
+                      <a
+                        href="https://www.instagram.com/azk.hy_?igsh=NTE0NHprOXNtb3Z1"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="p-3 rounded-2xl bg-slate-100/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 hover:text-pink-500 transition-all active:scale-90"
+                      >
+                        <Instagram size={22} />
+                      </a>
+                      <a href="https://wa.me/+6289652249372" target="_blank" rel="noreferrer" className="p-3 rounded-2xl bg-slate-100/50 dark:bg-slate-800/50 text-green-500 transition-all active:scale-90">
+                        <MessageCircle size={22} />
+                      </a>
+                    </div>
+                  </motion.div>
                 </div>
               </div>
             </motion.div>
@@ -283,9 +362,10 @@ const App = () => {
       <main className="max-w-6xl mx-auto px-6">
         {/* HOME SECTION */}
         <motion.section id="home" className="min-h-screen flex items-center pt-28 md:pt-0" variants={zoomIn} initial="hidden" animate="visible">
-          <div className="w-full grid md:grid-cols-2 gap-12 items-center">
-            {/* LEFT CONTENT */}
-            <motion.div initial={{ opacity: 0, x: -40 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }} className="flex-1">
+          {/* Perubahan: flex-col-reverse agar Profile Image (bawah di kode) naik ke atas pada mobile */}
+          <div className="w-full flex flex-col-reverse md:grid md:grid-cols-2 gap-12 items-center">
+            {/* LEFT CONTENT (Sekarang di bawah pada mobile) */}
+            <motion.div initial={{ opacity: 0, x: -40 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }} className="flex-1 w-full">
               <div className="inline-block px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-bold uppercase tracking-widest mb-4">Tech Enthusiast</div>
 
               <p className="text-xl font-medium text-slate-400 mb-2">Hello, I Am</p>
@@ -323,35 +403,29 @@ const App = () => {
                   </motion.span>
                 </motion.a>
 
-                <motion.a
-                  href="#" // Ubah menjadi hashtag
-                  onClick={(e) => e.preventDefault()} // Mencegah aksi default browser
-                  whileHover={{ x: 6 }}
-                  transition={{ duration: 0.3 }}
-                  className="group flex items-center gap-2 text-sm font-bold text-slate-500 cursor-default"
-                >
+                <motion.a href="#" onClick={(e) => e.preventDefault()} whileHover={{ x: 6 }} transition={{ duration: 0.3 }} className="group flex items-center gap-2 text-sm font-bold text-slate-500 cursor-default">
                   <Download size={18} className="transition opacity-70" />
                   <span>Download CV</span>
                 </motion.a>
               </div>
             </motion.div>
 
-            {/* RIGHT CONTENT - Profile Image */}
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6 }} className="relative flex justify-center">
-              <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }} className="absolute w-80 h-80 rounded-full bg-blue-600/30 blur-3xl" />
+            {/* RIGHT CONTENT - Profile Image (Sekarang di atas pada mobile) */}
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6 }} className="relative flex justify-center items-center py-6 md:py-0 w-full">
               <motion.div
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                animate={{
+                  y: [0, -10, 0],
+                  boxShadow: ['0 0 20px rgba(34, 211, 238, 0.3)', '0 0 50px rgba(34, 211, 238, 0.6)', '0 0 20px rgba(34, 211, 238, 0.3)'],
+                }}
+                transition={{
+                  duration: 4,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                }}
                 whileHover={{ scale: 1.05 }}
-                className="relative w-72 h-72 md:w-80 md:h-80 rounded-full bg-linear-to-tr from-blue-600 to-cyan-400 p-1"
+                className="relative w-64 h-64 md:w-80 md:h-80 rounded-full bg-linear-to-tr from-blue-600 to-cyan-400 p-1"
               >
-                <img
-                  src="/img/profil2.png"
-                  alt="Profile"
-                  className="w-full h-full rounded-full object-cover object-top bg-slate-900 transition-all duration-500 hover:brightness-110 hover:drop-shadow-[0_20px_40px_rgba(0,140,255,0.45)]"
-                  loading="lazy"
-                  decoding="async"
-                />
+                <img src="/img/profil2.png" alt="Profile" className="w-full h-full rounded-full object-cover object-top bg-slate-900 transition-all duration-500 hover:brightness-110" loading="lazy" decoding="async" />
               </motion.div>
             </motion.div>
           </div>
@@ -448,21 +522,44 @@ const App = () => {
         <motion.section id="skills" className="min-h-screen py-32" initial="hidden" whileInView="visible" viewport={{ once: false, amount: 0.2 }}>
           <h2 className="mb-6 text-4xl font-black text-center uppercase italic bg-linear-to-r from-blue-600 to-cyan-400 bg-clip-text text-transparent">Keahlian</h2>
           <p className="max-w-2xl mx-auto mb-20 text-center text-slate-500 dark:text-slate-400">Teknologi yang saya gunakan untuk membangun solusi, logika, dan pengalaman digital yang bermakna.</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 mb-32">
+          {/* SKILLS GRID CONTAINER */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 mb-32 px-4 py-12">
             {skills.map((skill, i) => (
               <motion.div
                 key={skill.name}
                 custom={i}
                 variants={skillItem}
-                whileHover={{ y: -10, scale: 1.05, transition: { duration: 0.2 } }}
-                className="relative group bg-white dark:bg-slate-900 rounded-2xl p-5 flex flex-col items-center justify-center border border-slate-200 dark:border-slate-800 transition-all duration-300 hover:border-transparent"
+                // Animasi angkat hanya aktif di desktop (layar md ke atas)
+                whileHover={window.innerWidth > 768 ? { y: -12, scale: 1.02 } : {}}
+                className="relative group bg-white dark:bg-slate-900 rounded-3xl p-6 flex flex-col items-center justify-center border border-slate-200 dark:border-slate-800 shadow-sm transition-all duration-500 md:hover:border-transparent"
               >
-                <div className={`absolute inset-0 rounded-2xl bg-linear-to-br ${skill.accent} opacity-0 group-hover:opacity-10 blur-xl transition-opacity duration-300`} />
-                <div className="relative z-10 w-16 h-16 mb-4 flex items-center justify-center bg-slate-50 dark:bg-slate-800/50 rounded-xl group-hover:bg-transparent transition-colors duration-300">
-                  <img src={skill.icon} alt={skill.name} className="w-10 h-10 object-contain filter grayscale group-hover:grayscale-0 transition-all duration-500" />
+                {/* 1. DYNAMIC BACKGROUND GLOW - Hanya aktif di Desktop (md:) */}
+                <div className={`absolute inset-0 rounded-3xl bg-linear-to-br ${skill.accent} opacity-0 md:group-hover:opacity-15 blur-2xl transition-all duration-500 -z-10`} />
+
+                {/* 2. DYNAMIC BORDER GLOW - Hanya aktif di Desktop (md:) */}
+                <div className={`absolute inset-0 rounded-3xl bg-linear-to-br ${skill.accent} opacity-0 md:group-hover:opacity-30 p-1px -z-10 transition-all duration-500`} />
+
+                {/* ICON CONTAINER */}
+                <div className="relative z-10 w-16 h-16 md:w-20 md:h-20 mb-4 flex items-center justify-center bg-slate-50 dark:bg-slate-800/50 rounded-2xl md:group-hover:bg-white dark:md:group-hover:bg-slate-800 transition-all duration-500">
+                  <img
+                    src={skill.icon}
+                    alt={skill.name}
+                    // Mobile: Langsung berwarna (grayscale-0)
+                    // Desktop: Grayscale awal, lalu berwarna saat hover (md:grayscale md:group-hover:grayscale-0)
+                    className="w-10 h-10 md:w-12 md:h-12 object-contain grayscale-0 md:grayscale md:group-hover:grayscale-0 transition-all duration-500 md:group-hover:scale-110"
+                  />
                 </div>
-                <span className="relative z-10 font-bold text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors duration-300">{skill.name}</span>
-                <div className={`mt-2 w-0 h-1 bg-linear-to-r ${skill.accent} rounded-full group-hover:w-full transition-all duration-500`} />
+
+                {/* TEXT LABEL */}
+                <span className="relative z-10 font-bold text-xs md:text-sm text-slate-700 dark:text-slate-200 md:text-slate-500 md:dark:text-slate-400 md:group-hover:text-slate-900 md:dark:group-hover:text-white transition-colors duration-300">
+                  {skill.name}
+                </span>
+
+                {/* PROGRESS BAR - Kita buat tetap ada tapi warnanya statis di mobile agar lebih minimalis */}
+                <div className="mt-3 w-12 h-1 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                  {/* Mobile: Langsung penuh tapi tipis | Desktop: Mengisi saat hover */}
+                  <div className={`h-full bg-linear-to-r ${skill.accent} rounded-full w-full md:w-0 md:group-hover:w-full transition-all duration-700 ease-out`} />
+                </div>
               </motion.div>
             ))}
           </div>
@@ -585,28 +682,41 @@ const App = () => {
         </motion.section>
 
         {/* CONTACT SECTION */}
-        <motion.section id="contact" className="relative flex items-center min-h-screen py-32 overflow-hidden" initial="hidden" whileInView="visible" viewport={{ once: false, amount: 0.4 }}>
-          <div className="absolute inset-0 -z-10 overflow-hidden">
-            <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.25, 0.4, 0.25] }} transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }} className="absolute w-96 h-96 bg-blue-500/30 rounded-full blur-3xl -top-24 -left-24" />
-            <motion.div animate={{ scale: [1, 1.15, 1], opacity: [0.2, 0.35, 0.2] }} transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }} className="absolute w-96 h-96 bg-cyan-400/30 rounded-full blur-3xl bottom-0 right-0" />
+        <motion.section id="contact" className="relative flex items-center min-h-screen py-32" initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.4 }}>
+          <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+            <motion.div
+              animate={{ scale: [1, 1.2, 1], opacity: [0.15, 0.3, 0.15] }}
+              transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+              className="absolute w-400px h-400px bg-blue-500/20 rounded-full blur-[100px] -top-20 -left-20"
+            />
+            <motion.div
+              animate={{ scale: [1, 1.15, 1], opacity: [0.1, 0.25, 0.1] }}
+              transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
+              className="absolute w-400px h-400px bg-cyan-400/20 rounded-full blur-[100px] -bottom-20 -right-20"
+            />
           </div>
-          <div className="max-w-4xl px-6 mx-auto text-center">
+
+          <div className="max-w-4xl px-6 mx-auto text-center relative z-10">
             <motion.h2 variants={contactItem} custom={0} className="mb-6 text-4xl italic font-black uppercase text-transparent bg-linear-to-r from-blue-600 to-cyan-400 bg-clip-text md:text-5xl tracking-tight">
               Let’s Connect
             </motion.h2>
+
             <motion.p variants={contactItem} custom={1} className="max-w-2xl mx-auto mb-14 text-lg text-slate-600 dark:text-slate-400 leading-relaxed">
               Tertarik untuk berdiskusi, berkolaborasi, atau sekadar menyapa? Saya terbuka untuk peluang dan obrolan baru.
             </motion.p>
+
             <motion.div variants={contactItem} custom={1.5} className="grid grid-cols-1 gap-6 mb-16 sm:grid-cols-2 max-w-2xl mx-auto">
-              <div className="group p-6 border backdrop-blur-md rounded-3xl bg-white/50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 transition-all hover:border-blue-500/50">
+              <div className="group p-6 border backdrop-blur-xl rounded-3xl bg-white/40 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 transition-all hover:border-blue-500/50 hover:shadow-(--color-blue-500/10)">
                 <p className="mb-2 text-xs font-bold text-blue-600 uppercase tracking-widest">Role</p>
                 <p className="text-base font-semibold text-slate-800 dark:text-slate-200">Information Systems Student</p>
               </div>
-              <div className="group p-6 border backdrop-blur-md rounded-3xl bg-white/50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 transition-all hover:border-cyan-500/50">
+
+              <div className="group p-6 border backdrop-blur-xl rounded-3xl bg-white/40 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 transition-all hover:border-cyan-500/50 hover:shadow-(--color-cyan-500/10)">
                 <p className="mb-2 text-xs font-bold text-cyan-500 uppercase tracking-widest">Focus</p>
-                <p className="text-base font-semibold text-slate-800 dark:text-slate-200">Web, ERP, Game Dev</p>
+                <p className="text-base font-semibold text-slate-800 dark:text-slate-200">Front End Web Developer</p>
               </div>
             </motion.div>
+
             <motion.div variants={contactItem} custom={2} className="flex flex-col items-center justify-center gap-6 sm:flex-row">
               <motion.a
                 href="mailto:raihanazkahidayat90@gmail.com"
@@ -625,10 +735,8 @@ const App = () => {
       </main>
 
       <footer className="border-t border-slate-200 dark:border-slate-800">
-        <div className="mx-auto max-w-6xl px-6 py-14 flex flex-col items-center text-center">
-          <p className="max-w-md text-sm text-slate-500 dark:text-slate-400">Information Systems Student • Web & ERP Enthusiast</p>
-          <span className="h-px w-16 bg-slate-300 dark:bg-slate-700 my-4" />
-          <p className="text-xs opacity-50">© 2026 • Built with React & Tailwind</p>
+        <div className="mx-auto max-w-6xl px-6 py-6 flex flex-col items-center text-center">
+          <p className="text-[10px] uppercase tracking-widest opacity-60">© 2026 • Raihan Azka • Built with React & Tailwind</p>
         </div>
       </footer>
 
@@ -636,14 +744,16 @@ const App = () => {
         {showBackToTop && (
           <motion.button
             initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
+            animate={isLaunching ? { y: -1000, opacity: 0, scale: 1.5 } : { opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 40 }}
-            whileHover={{ scale: 1.15, rotate: -15, boxShadow: '0 0 30px rgba(59,130,246,0.8)' }}
-            transition={{ duration: 0.3 }}
-            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            className="fixed bottom-8 right-8 z-50 p-4 rounded-full bg-blue-600 text-white"
+            whileHover={!isLaunching ? { scale: 1.15, rotate: -15, boxShadow: '0 0 30px rgba(59,130,246,0.8)' } : {}}
+            transition={{ duration: isLaunching ? 0.8 : 0.3, ease: isLaunching ? 'easeIn' : 'easeOut' }}
+            onClick={handleLaunch}
+            className="fixed bottom-8 right-8 z-50 p-4 rounded-full bg-blue-600 text-white shadow-lg"
           >
-            <Rocket />
+            <motion.div animate={isLaunching ? { x: [0, 2, -2, 0], y: [0, -2, 2, 0] } : {}} transition={{ repeat: Infinity, duration: 0.1 }}>
+              <Rocket size={24} className={isLaunching ? 'fill-white' : ''} />
+            </motion.div>
           </motion.button>
         )}
       </AnimatePresence>

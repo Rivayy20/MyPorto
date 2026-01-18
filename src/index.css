@@ -1,18 +1,18 @@
 @import 'tailwindcss';
-
 @variant dark (&:where(.dark, .dark *));
 
 html {
-  scroll-behavior: smooth;
   overflow-x: hidden;
+  scroll-padding-top: 100px;
 }
 
 section {
-  /* Memberikan jarak atas saat scroll agar judul tidak tertutup navbar fixed */
   scroll-margin-top: 7rem;
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 500px;
 }
 
 body {
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
-
